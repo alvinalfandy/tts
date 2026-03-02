@@ -62,6 +62,7 @@ export default function PlayPage() {
     const [playerName, setPlayerName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [scoreSubmitted, setScoreSubmitted] = useState(false);
+    const [finalScore, setFinalScore] = useState<number | null>(null);
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [showShareModal, setShowShareModal] = useState(false);
     const [showOverlay, setShowOverlay] = useState(false);
@@ -114,7 +115,7 @@ export default function PlayPage() {
 
         setIsSubmitting(true);
         try {
-            await fetch('/api/scores', {
+            const res = await fetch('/api/scores', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -124,6 +125,10 @@ export default function PlayPage() {
                     hintsUsed
                 })
             });
+            const data = await res.json();
+            if (data.score?.totalScore) {
+                setFinalScore(data.score.totalScore);
+            }
             setScoreSubmitted(true);
             loadLeaderboard();
         } catch (e) {
@@ -238,14 +243,20 @@ export default function PlayPage() {
                         <p style={{ color: 'var(--text-secondary)', fontSize: 16, marginBottom: 24 }}>
                             Kamu berhasil menyelesaikan puzzle ini!
                         </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                            <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 16 }}>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>WAKTU</div>
-                                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent-light)' }}>{formatTime(seconds)}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+                            <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 12 }}>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>WAKTU</div>
+                                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--accent-light)' }}>{formatTime(seconds)}</div>
                             </div>
-                            <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 16 }}>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>HINT DIPAKAI</div>
-                                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--gold)' }}>{hintsUsed}</div>
+                            <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 12 }}>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>HINT</div>
+                                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--gold)' }}>{hintsUsed}</div>
+                            </div>
+                            <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 12, border: '1px solid rgba(34,211,238,0.2)' }}>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>SKOR</div>
+                                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>
+                                    {finalScore !== null ? finalScore : Math.max(100, 10000 - (seconds * 2) - (hintsUsed * 200))}
+                                </div>
                             </div>
                         </div>
 
