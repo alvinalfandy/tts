@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 
@@ -19,13 +19,13 @@ export default function HomePage() {
   const [seeding, setSeeding] = useState(false);
   const role = (session?.user as { role?: string })?.role;
 
-  const fetchPuzzles = async () => {
+  const fetchPuzzles = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/puzzles');
     const data = await res.json();
     setPuzzles(data.puzzles || []);
     setLoading(false);
-  };
+  }, []);
 
   const seedDb = async () => {
     setSeeding(true);
@@ -36,7 +36,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchPuzzles();
-  }, []);
+  }, [fetchPuzzles]);
 
   const formatDate = (iso: string) => {
     return new Date(iso).toLocaleDateString('id-ID', {
@@ -157,7 +157,7 @@ export default function HomePage() {
 
         {/* Section Header */}
         <div id="puzzle-list" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>Puzzle Tersedia</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{session ? 'Puzzle Tersedia' : 'Jelajahi Puzzle'}</h2>
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{puzzles.length} puzzle</span>
         </div>
 
@@ -166,6 +166,39 @@ export default function HomePage() {
           <div style={{ textAlign: 'center', padding: 80, color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
             <p>Memuat puzzle...</p>
+          </div>
+        ) : !session ? (
+          /* Guest Landing Component */
+          <div style={{ textAlign: 'center', padding: '60px 24px', position: 'relative' }}>
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'linear-gradient(to bottom, transparent, var(--bg-primary))',
+              zIndex: 2, pointerEvents: 'none'
+            }} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20, filter: 'blur(8px)', opacity: 0.3 }}>
+              {puzzles.slice(0, 3).map((p, i) => (
+                <div key={i} className="glass-card" style={{ padding: 24, height: 200 }} />
+              ))}
+            </div>
+
+            <div style={{ position: 'relative', zIndex: 10, marginTop: -100 }}>
+              <div className="glass-card" style={{ maxWidth: 500, margin: '0 auto', padding: 40, border: '1px solid var(--border-accent)' }}>
+                <div style={{ fontSize: 48, marginBottom: 20 }}>🔒</div>
+                <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12 }}>Akses Terbatas</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>
+                  Hanya anggota terdaftar yang bisa memainkan puzzle dan masuk ke Leaderboard. Bergabunglah sekarang untuk mulai mengasah otak!
+                </p>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                  <Link href="/login">
+                    <button className="btn-primary" style={{ padding: '12px 32px' }}>Masuk / Login</button>
+                  </Link>
+                  <Link href="/register">
+                    <button className="btn-secondary" style={{ padding: '12px 32px' }}>Daftar Akun</button>
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         ) : puzzles.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 80 }} className="glass-card">
@@ -188,7 +221,7 @@ export default function HomePage() {
                 <div key={puzzle._id} className="glass-card" style={{ padding: 24 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, var(--accent), #5b21b6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                      🎯
+                      Target
                     </div>
                     <span className="badge badge-green">Published</span>
                   </div>
@@ -203,7 +236,7 @@ export default function HomePage() {
                     </div>
                   )}
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-                    📅 {formatDate(puzzle.createdAt)}
+                    📅 {new Date(puzzle.createdAt).toLocaleDateString('id-ID')}
                   </div>
                   <Link href={`/play/${puzzle._id}`} style={{ display: 'block' }}>
                     <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
@@ -214,7 +247,8 @@ export default function HomePage() {
               );
             })}
           </div>
-        )}
+        )
+        }
       </div>
 
       {/* Footer */}

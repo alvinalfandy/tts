@@ -374,58 +374,38 @@ export default function PlayPage() {
                             <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 20 }}>✕</button>
                         </div>
 
-                        {/* Public Link */}
-                        <div style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                <span style={{ fontSize: 18 }}>🌐</span>
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: 13, color: '#34d399' }}>Link Publik</div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Siapa saja bisa main, tanpa perlu daftar</div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    readOnly
-                                    value={typeof window !== 'undefined' ? window.location.href : ''}
-                                    style={{ flex: 1, fontSize: 11, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                                />
-                                <button
-                                    className="btn-secondary"
-                                    style={{ fontSize: 12, padding: '8px 14px', whiteSpace: 'nowrap' }}
-                                    onClick={() => { navigator.clipboard.writeText(window.location.href); setCopied('public'); setTimeout(() => setCopied(''), 2000); }}
-                                >
-                                    {copied === 'public' ? '✅ Copied!' : '📋 Copy'}
-                                </button>
-                            </div>
-                        </div>
-
                         {/* Players Only Link */}
                         <div style={{ padding: 16, borderRadius: 12, background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                 <span style={{ fontSize: 18 }}>🔒</span>
                                 <div>
-                                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-light)' }}>Link Player Only</div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hanya member terdaftar yang bisa bergabung</div>
+                                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-light)' }}>Link Khusus Member</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hanya anggota terdaftar yang bisa memainkan puzzle ini</div>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <input
                                     readOnly
-                                    value={typeof window !== 'undefined' ? `${window.location.href}?mode=players-only` : ''}
+                                    value={typeof window !== 'undefined' ? `${window.location.origin}/play/${id}` : ''}
                                     style={{ flex: 1, fontSize: 11, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
                                 />
                                 <button
                                     className="btn-primary"
                                     style={{ fontSize: 12, padding: '8px 14px', whiteSpace: 'nowrap' }}
-                                    onClick={() => { navigator.clipboard.writeText(`${window.location.href}?mode=players-only`); setCopied('players'); setTimeout(() => setCopied(''), 2000); }}
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/play/${id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setCopied('players');
+                                        setTimeout(() => setCopied(''), 2000);
+                                    }}
                                 >
-                                    {copied === 'players' ? '✅ Copied!' : '📋 Copy'}
+                                    {copied === 'players' ? '✅ Copied!' : '📋 Copy Link'}
                                 </button>
                             </div>
                         </div>
 
                         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
-                            Bagikan ke teman, lalu kalian bisa main bareng dan adu skor di leaderboard! 🏆
+                            Bagikan ke teman pengembang lainnya untuk beradu skor di leaderboard! 🏆
                         </div>
                     </div>
                 </div>

@@ -23,9 +23,19 @@ export const proxy = auth((req) => {
         }
     }
 
+    // Proteksi route /play — harus login
+    if (pathname.startsWith('/play')) {
+        if (!session) {
+            const loginUrl = new URL('/login', req.url);
+            loginUrl.searchParams.set('callbackUrl', pathname);
+            loginUrl.searchParams.set('error', 'unauthenticated');
+            return NextResponse.redirect(loginUrl);
+        }
+    }
+
     return NextResponse.next();
 });
 
 export const config = {
-    matcher: ['/admin/:path*'],
+    matcher: ['/admin/:path*', '/play/:path*'],
 };
