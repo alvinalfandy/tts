@@ -108,12 +108,42 @@ export default function PlayPage() {
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [timerRunning, completed]);
 
+    const handleScoreSubmit = useCallback(async (overrideName?: string) => {
+        const nameToSubmit = overrideName || playerName;
+        if (!nameToSubmit.trim()) return;
+
+        setIsSubmitting(true);
+        try {
+            await fetch('/api/scores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    puzzleId: id,
+                    playerName: nameToSubmit,
+                    timeSeconds: seconds,
+                    hintsUsed
+                })
+            });
+            setScoreSubmitted(true);
+            loadLeaderboard();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [id, playerName, seconds, hintsUsed, loadLeaderboard]);
+
     const handleComplete = useCallback(() => {
         setCompleted(true);
         setShowOverlay(true);
         setTimerRunning(false);
         if (timerRef.current) clearInterval(timerRef.current);
-    }, []);
+
+        // Auto-submit score
+        const finalName = playerName.trim() || (session?.user?.name) || `Pemain #${getOrCreatePlayerId()}`;
+        if (!playerName) setPlayerName(finalName);
+        handleScoreSubmit(finalName);
+    }, [playerName, session, handleScoreSubmit]);
 
     // Multiplayer: handle local cell change - queue it
     const handleCellChange = useCallback((key: string, value: string) => {
@@ -148,29 +178,6 @@ export default function PlayPage() {
 
         return () => clearInterval(syncInterval);
     }, [puzzle, playerColor, playerName, session]);
-
-    const handleScoreSubmit = async () => {
-        if (!playerName.trim()) return;
-        setIsSubmitting(true);
-        try {
-            await fetch('/api/scores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    puzzleId: id,
-                    playerName,
-                    timeSeconds: seconds,
-                    hintsUsed
-                })
-            });
-            setScoreSubmitted(true);
-            loadLeaderboard();
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const across = puzzle?.placements.filter((p) => p.direction === 'across') || [];
     const down = puzzle?.placements.filter((p) => p.direction === 'down') || [];
@@ -244,39 +251,16 @@ export default function PlayPage() {
 
                         {!scoreSubmitted ? (
                             <div style={{ marginBottom: 24 }}>
-                                {session?.user?.name ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-                                        <div style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', fontSize: 14, fontWeight: 700 }}>
-                                            👤 {session.user.name}
-                                        </div>
-                                        <button onClick={handleScoreSubmit} disabled={isSubmitting} className="btn-gold" style={{ width: '100%' }}>
-                                            {isSubmitting ? '...' : '🏆 Simpan Skor ke Leaderboard'}
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>MASUKKAN NAMA UNTUK LEADERBOARD</label>
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <input className="input-field" placeholder="Namamu..." value={playerName} onChange={(e) => setPlayerName(e.target.value)} style={{ height: 44 }} />
-                                            <button onClick={handleScoreSubmit} disabled={isSubmitting || !playerName} className="btn-gold" style={{ whiteSpace: 'nowrap' }}>
-                                                {isSubmitting ? '...' : 'Simpan'}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                    <div className="spinner" style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.1)', borderTop: '2px solid var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                    Menyimpan skor...
+                                </div>
                             </div>
                         ) : (
                             <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
                                 <div style={{ padding: '12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 10, color: 'var(--green)', fontSize: 13, fontWeight: 600, width: '100%', textAlign: 'center' }}>
-                                    ✅ Skor Berhasil Disimpan!
+                                    ✅ Skor Berhasil Disimpan sebagai <strong>{playerName}</strong>
                                 </div>
-                                <button
-                                    onClick={() => { setShowOverlay(false); loadLeaderboard(); }}
-                                    className="btn-primary"
-                                    style={{ width: '100%' }}
-                                >
-                                    🏆 Lihat Leaderboard
-                                </button>
                             </div>
                         )}
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
