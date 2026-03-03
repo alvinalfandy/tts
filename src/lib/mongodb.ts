@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+// DATABASE CONNECTION: Menggunakan Mongoose untuk koneksi ke MongoDB.
+// Kita menggunakan Environment Variable (process.env.MONGODB_URI) untuk keamanan.
+// Jika di Vercel, sistem otomatis pakai MongoDB Atlas (Cloud). 
+// Jika di lokal, sistem pakai localhost sebagai cadangan.
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tts-crossword';
 
 interface MongooseCache {
@@ -18,6 +22,8 @@ if (!global.mongoose) {
     global.mongoose = cached;
 }
 
+// SINGLETON PATTERN: Penting untuk Next.js (Hot Reload).
+// Kita menyimpan koneksi di objek 'global' supaya tidak terjadi penumpukan koneksi ke database.
 async function connectDB() {
     if (cached.conn) return cached.conn;
 

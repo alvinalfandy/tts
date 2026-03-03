@@ -4,11 +4,13 @@ import { NextResponse } from 'next/server';
 
 const { auth } = NextAuth(authConfig);
 
+// SECURITY LAYER: Middleware ini berfungsi sebagai "Satpam" aplikasi.
+// Kita memvalidasi session user sebelum halaman dirender di browser.
 export const proxy = auth((req) => {
     const { pathname } = req.nextUrl;
     const session = req.auth;
 
-    // Proteksi route /admin — harus login sebagai admin
+    // PROTEKSI ROLE: Hanya user dengan role 'admin' yang bisa masuk ke dashboard creator.
     if (pathname.startsWith('/admin')) {
         if (!session) {
             const loginUrl = new URL('/login', req.url);
@@ -23,7 +25,7 @@ export const proxy = auth((req) => {
         }
     }
 
-    // Proteksi route /play — harus login
+    // MEMBER ONLY: Halaman bermain dikunci hanya untuk user yang sudah login.
     if (pathname.startsWith('/play')) {
         if (!session) {
             const loginUrl = new URL('/login', req.url);
@@ -37,5 +39,6 @@ export const proxy = auth((req) => {
 });
 
 export const config = {
+    // MATCHER: Menentukan route mana saja yang harus melewati proteksi middleware.
     matcher: ['/admin/:path*', '/play/:path*'],
 };

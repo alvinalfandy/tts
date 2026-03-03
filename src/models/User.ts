@@ -10,6 +10,8 @@ export interface IUser extends Document {
     updatedAt?: Date;
 }
 
+// DATABASE MODEL: Ini adalah "Skema" data User.
+// Menentukan field apa saja yang wajib ada (username, password, role).
 const UserSchema = new Schema<IUser>(
     {
         name: { type: String, required: true },

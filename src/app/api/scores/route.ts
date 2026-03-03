@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Score } from '@/models/Score';
+import { auth } from '@/lib/auth';
 
 export async function GET(req: Request) {
     try {
@@ -20,8 +21,14 @@ export async function GET(req: Request) {
     }
 }
 
-export async function POST(req: Request) {
+// SECURITY CHECK: Di sini kita memproses skor yang masuk.
+// 1. Session-Gated: Hanya user yang sudah login yang bisa kirim skor.
+// 2. Server-Side Check: Skor dihitung ulang di server untuk cegah manipulasi klien.
+export const POST = auth(async (req) => {
     try {
+        const session = req.auth;
+        if (!session) return NextResponse.json({ error: 'Unauthorized: Login required to submit score' }, { status: 401 });
+
         await dbConnect();
         const body = await req.json();
         const { puzzleId, playerName, timeSeconds, hintsUsed } = body;
@@ -30,8 +37,8 @@ export async function POST(req: Request) {
         // Deduct 2 points per second
         // Deduct 200 points per hint
         // Minimum score: 100
-        const base = 10000;
-        const totalScore = Math.max(100, base - (timeSeconds * 2) - (hintsUsed * 200));
+        // ANTI-CHEAT LOGIC: Hitung skor di server, jangan percaya 100% hitungan dari browser.
+        const totalScore = Math.max(100, 10000 - (timeSeconds * 2) - (hintsUsed * 200));
 
         const score = await Score.create({
             puzzleId,
@@ -45,4 +52,4 @@ export async function POST(req: Request) {
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
-}
+});

@@ -14,6 +14,7 @@ interface CrosswordGridProps {
     onCellChange?: (key: string, value: string) => void;
     remoteCells?: Record<string, { value: string; color: string; playerName: string }>;
     getCellsRef?: React.MutableRefObject<(() => string[][]) | null>;
+    setCellsRef?: React.MutableRefObject<((vals: Record<string, string>) => void) | null>;
 }
 
 interface CellState {
@@ -21,7 +22,7 @@ interface CellState {
     correct?: boolean;
 }
 
-export default function CrosswordGrid({ grid, placements, readOnly = false, onComplete, onProgress, onHintUsed, onCellChange, remoteCells = {}, getCellsRef }: CrosswordGridProps) {
+export default function CrosswordGrid({ grid, placements, readOnly = false, onComplete, onProgress, onHintUsed, onCellChange, remoteCells = {}, getCellsRef, setCellsRef }: CrosswordGridProps) {
     const rows = grid.length;
     const cols = grid[0]?.length || 0;
 
@@ -55,6 +56,26 @@ export default function CrosswordGrid({ grid, placements, readOnly = false, onCo
             getCellsRef.current = () => cells.map(row => row.map(cell => cell.value));
         }
     }, [cells, getCellsRef]);
+
+    // INTERVIEW-READY: Ini cara kita mensinkronkan data dari pemain lain ke grid lokal.
+    useEffect(() => {
+        if (setCellsRef) {
+            setCellsRef.current = (updates: Record<string, string>) => {
+                setCells(prev => {
+                    const next = prev.map(row => row.map(cell => ({ ...cell })));
+                    let changed = false;
+                    Object.entries(updates).forEach(([key, val]) => {
+                        const [r, c] = key.split(',').map(Number);
+                        if (next[r] && next[r][c] && next[r][c].value !== val) {
+                            next[r][c].value = val;
+                            changed = true;
+                        }
+                    });
+                    return changed ? next : prev;
+                });
+            };
+        }
+    }, [setCellsRef]);
 
     // Build cell-number lookup: [row][col] -> number
     const cellNumbers = useRef<Map<string, number>>(new Map());
@@ -179,40 +200,42 @@ export default function CrosswordGrid({ grid, placements, readOnly = false, onCo
         [rows, cols, grid, updateActiveWord]
     );
 
+    // LOGIKA NAVIGASI: Fungsi ini mengatur pergerakan kursor di dalam grid.
+    // Pemain bisa berpindah antar sel menggunakan tombol ARAH (Arrow Keys).
     const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent, r: number, c: number) => {
+        (e: React.KeyboardEvent, row: number, col: number) => {
             if (readOnly) return;
 
             if (e.key === 'ArrowRight') {
                 e.preventDefault();
-                if (activeDirection !== 'across') { setActiveDirection('across'); updateActiveWord(r, c, 'across'); }
-                else if (c + 1 < cols && grid[r][c + 1] !== '') { setActiveCell({ r, c: c + 1 }); updateActiveWord(r, c + 1, 'across'); inputRefs.current[r][c + 1]?.focus(); }
+                if (activeDirection !== 'across') { setActiveDirection('across'); updateActiveWord(row, col, 'across'); }
+                else if (col + 1 < cols && grid[row][col + 1] !== '') { setActiveCell({ r: row, c: col + 1 }); updateActiveWord(row, col + 1, 'across'); inputRefs.current[row][col + 1]?.focus(); }
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
-                if (activeDirection !== 'across') { setActiveDirection('across'); updateActiveWord(r, c, 'across'); }
-                else if (c - 1 >= 0 && grid[r][c - 1] !== '') { setActiveCell({ r, c: c - 1 }); updateActiveWord(r, c - 1, 'across'); inputRefs.current[r][c - 1]?.focus(); }
+                if (activeDirection !== 'across') { setActiveDirection('across'); updateActiveWord(row, col, 'across'); }
+                else if (col - 1 >= 0 && grid[row][col - 1] !== '') { setActiveCell({ r: row, c: col - 1 }); updateActiveWord(row, col - 1, 'across'); inputRefs.current[row][col - 1]?.focus(); }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (activeDirection !== 'down') { setActiveDirection('down'); updateActiveWord(r, c, 'down'); }
-                else if (r + 1 < rows && grid[r + 1][c] !== '') { setActiveCell({ r: r + 1, c }); updateActiveWord(r + 1, c, 'down'); inputRefs.current[r + 1][c]?.focus(); }
+                if (activeDirection !== 'down') { setActiveDirection('down'); updateActiveWord(row, col, 'down'); }
+                else if (row + 1 < rows && grid[row + 1][col] !== '') { setActiveCell({ r: row + 1, c: col }); updateActiveWord(row + 1, col, 'down'); inputRefs.current[row + 1][col]?.focus(); }
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (activeDirection !== 'down') { setActiveDirection('down'); updateActiveWord(r, c, 'down'); }
-                else if (r - 1 >= 0 && grid[r - 1][c] !== '') { setActiveCell({ r: r - 1, c }); updateActiveWord(r - 1, c, 'down'); inputRefs.current[r - 1][c]?.focus(); }
+                if (activeDirection !== 'down') { setActiveDirection('down'); updateActiveWord(row, col, 'down'); }
+                else if (row - 1 >= 0 && grid[row - 1][col] !== '') { setActiveCell({ r: row - 1, c: col }); updateActiveWord(row - 1, col, 'down'); inputRefs.current[row - 1][col]?.focus(); }
             } else if (e.key === 'Backspace') {
                 e.preventDefault();
-                const current = cells[r][c].value;
+                const current = cells[row][col].value;
                 if (current) {
-                    const newCells = cells.map((row) => row.map((cell) => ({ ...cell })));
-                    newCells[r][c] = { value: '' };
+                    const newCells = cells.map((r) => r.map((cell) => ({ ...cell })));
+                    newCells[row][col] = { value: '' };
                     setCells(newCells);
-                    setCheckedCells((prev) => { const s = new Set(prev); s.delete(`${r},${c}`); return s; });
+                    setCheckedCells((prev) => { const s = new Set(prev); s.delete(`${row},${col}`); return s; });
                 } else {
-                    moveToPrev(r, c, activeDirection);
+                    moveToPrev(row, col, activeDirection);
                 }
             } else if (e.key === 'Tab') {
                 e.preventDefault();
-                const currentP = getPlacementsAtCell(r, c, activeDirection);
+                const currentP = getPlacementsAtCell(row, col, activeDirection);
                 if (currentP) {
                     const idx = placements.indexOf(currentP);
                     const nextIdx = e.shiftKey
@@ -255,20 +278,22 @@ export default function CrosswordGrid({ grid, placements, readOnly = false, onCo
         [rows, cols, onProgress, onComplete, completed]
     );
 
+    // UX POLISH: Mengatur fokus secara otomatis saat user mengetik huruf.
+    // Jika sel sudah diisi, kursor akan otomatis pindah ke sel berikutnya.
     const handleInput = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>, r: number, c: number) => {
+        (e: React.ChangeEvent<HTMLInputElement>, row: number, col: number) => {
             if (readOnly) return;
             const val = e.target.value.replace(/[^a-zA-Z]/g, '').slice(-1).toUpperCase();
-            const newCells = cells.map((row) => row.map((cell) => ({ ...cell })));
-            newCells[r][c] = { value: val };
+            const newCells = cells.map((r) => r.map((cell) => ({ ...cell })));
+            newCells[row][col] = { value: val };
             setCells(newCells);
-            setCheckedCells((prev) => { const s = new Set(prev); s.delete(`${r},${c}`); return s; });
+            setCheckedCells((prev) => { const s = new Set(prev); s.delete(`${row},${col}`); return s; });
 
             // Notify parent for collaborative sync
-            onCellChange?.(`${r},${c}`, val);
+            onCellChange?.(`${row},${col}`, val);
 
             // Kirim newCells agar moveToNext tahu sel mana yang sudah terisi
-            if (val) moveToNext(r, c, activeDirection, newCells);
+            if (val) moveToNext(row, col, activeDirection, newCells);
 
             checkProgress(newCells);
         },

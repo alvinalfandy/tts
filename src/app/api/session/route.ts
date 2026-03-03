@@ -29,9 +29,18 @@ export async function POST(req: Request) {
         const { puzzleId, playerId, playerName, playerColor, cells } = await req.json();
         if (!puzzleId || !playerId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-        // Upsert the shared session, merge incoming cells
+        // Upsert the shared session, merge incoming cells with metadata
         const existing = await SharedSession.findOne({ puzzleId });
-        const mergedCells = { ...(existing?.cells || {}), ...cells };
+        const incomingWithMetadata: Record<string, any> = {};
+        Object.entries(cells || {}).forEach(([key, val]) => {
+            incomingWithMetadata[key] = {
+                value: val,
+                playerId,
+                playerName,
+                playerColor
+            };
+        });
+        const mergedCells = { ...(existing?.cells || {}), ...incomingWithMetadata };
 
         // Update or create session
         await SharedSession.findOneAndUpdate(

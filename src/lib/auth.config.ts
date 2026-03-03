@@ -2,6 +2,8 @@
 // Used by middleware/proxy.ts for session checking only
 import type { NextAuthConfig } from 'next-auth';
 
+// AUTH CONFIGURATION: Aturan main untuk sistem Login.
+// Di sini kita menentukan halaman mana yang dipakai buat login (pages.signIn).
 export const authConfig: NextAuthConfig = {
     secret: process.env.AUTH_SECRET,
     providers: [], // Providers defined in auth.ts (Node.js only)

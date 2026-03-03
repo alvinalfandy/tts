@@ -43,10 +43,10 @@ export default function PlayPage() {
     const { data: session } = useSession();
     const isPlayersOnly = searchParams.get('mode') === 'players-only';
 
-    // Gate: redirect if players-only and not logged in
+    // REDIRECTION GATE: Mengunci puzzle agar hanya bisa dimainkan oleh member.
+    // Jika user mencoba main tanpa login, mereka otomatis dilempar ke halaman Register.
     useEffect(() => {
         if (isPlayersOnly && session === null) {
-            // null means unauthenticated (not undefined = loading)
             router.push('/register?reason=players-only');
         }
     }, [isPlayersOnly, session, router]);
@@ -76,7 +76,10 @@ export default function PlayPage() {
     const [remoteCells, setRemoteCells] = useState<Record<string, { value: string; color: string; playerName: string }>>({});
     const [onlinePlayers, setOnlinePlayers] = useState<{ id: string; name: string; color: string }[]>([]);
     const pendingCells = useRef<Record<string, string>>({});
+    const lastSyncCells = useRef<string>(JSON.stringify({}));
     const getCellsRef = useRef<(() => string[][]) | null>(null);
+    const setCellsRef = useRef<((vals: Record<string, string>) => void) | null>(null);
+    const isCoop = searchParams.get('mode') === 'coop';
 
     const loadLeaderboard = useCallback(() => {
         fetch(`/api/scores?puzzleId=${id}`)
@@ -109,6 +112,8 @@ export default function PlayPage() {
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [timerRunning, completed]);
 
+    // LOGIKA LEADERBOARD: Fungsi untuk menyimpan skor ke database MongoDB.
+    // Skor dihitung secara otomatis berdasarkan waktu pengerjaan dan jumlah hint.
     const handleScoreSubmit = useCallback(async (overrideName?: string) => {
         const nameToSubmit = overrideName || playerName;
         if (!nameToSubmit.trim()) return;
@@ -138,6 +143,8 @@ export default function PlayPage() {
         }
     }, [id, playerName, seconds, hintsUsed, loadLeaderboard]);
 
+    // GAME COMPLETION: Dipanggil otomatis saat semua kotak terisi dengan benar.
+    // Sistem akan menghentikan timer dan memicu proses simpan skor.
     const handleComplete = useCallback(() => {
         setCompleted(true);
         setShowOverlay(true);
@@ -155,12 +162,15 @@ export default function PlayPage() {
         pendingCells.current[key] = value;
     }, []);
 
-    // Multiplayer: presence-only ping (no letter sharing = pure competition)
+    // MULTIPLAYER PRESENCE & SYNC: Fitur untuk sinkronisasi grid real-time.
     useEffect(() => {
         if (!puzzle) return;
         const syncInterval = setInterval(async () => {
             try {
-                // Ping to maintain presence (no cell data)
+                const currentPending = { ...pendingCells.current };
+                pendingCells.current = {};
+
+                // Ping & Sync
                 await fetch('/api/session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -169,20 +179,37 @@ export default function PlayPage() {
                         playerId: playerId.current,
                         playerName: playerName || (session?.user?.name) || 'Pemain',
                         playerColor,
-                        cells: {}, // never share letters — pure competition
+                        cells: isCoop ? currentPending : {}, // Share letters only in coop mode
                     }),
                 });
 
-                // Fetch presence only (to show online count)
+                // Fetch latest state
                 const res = await fetch(`/api/session?puzzleId=${puzzle._id}`);
                 const data = await res.json();
+
+                // Show online count
                 const others = (data.players || []).filter((p: any) => p.id !== playerId.current);
                 setOnlinePlayers(others);
+
+                // If coop, update local grid from shared state
+                if (isCoop && data.cells) {
+                    const stringified = JSON.stringify(data.cells);
+                    if (stringified !== lastSyncCells.current) {
+                        lastSyncCells.current = stringified;
+
+                        // Extract only values for local cells
+                        const cellUpdates: Record<string, string> = {};
+                        Object.entries(data.cells).forEach(([key, val]: [string, any]) => {
+                            cellUpdates[key] = val.value;
+                        });
+                        setCellsRef.current?.(cellUpdates);
+                    }
+                }
             } catch { /* silent fail */ }
-        }, 3000);
+        }, 1500); // Faster sync for co-op experience
 
         return () => clearInterval(syncInterval);
-    }, [puzzle, playerColor, playerName, session]);
+    }, [puzzle, playerColor, playerName, session, isCoop]);
 
     const across = puzzle?.placements.filter((p) => p.direction === 'across') || [];
     const down = puzzle?.placements.filter((p) => p.direction === 'down') || [];
@@ -467,6 +494,8 @@ export default function PlayPage() {
                                 onProgress={setProgress}
                                 onHintUsed={() => setHintsUsed((h) => h + 1)}
                                 getCellsRef={getCellsRef}
+                                setCellsRef={setCellsRef}
+                                onCellChange={handleCellChange}
                             />
                         </div>
                     </div>

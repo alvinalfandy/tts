@@ -17,6 +17,7 @@ export default function HomePage() {
   const [puzzles, setPuzzles] = useState<PuzzleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [selectedPuzzleId, setSelectedPuzzleId] = useState<string | null>(null);
   const role = (session?.user as { role?: string })?.role;
 
   const fetchPuzzles = useCallback(async () => {
@@ -168,6 +169,9 @@ export default function HomePage() {
             <p>Memuat puzzle...</p>
           </div>
         ) : !session ? (
+          /* LOGIKA CONDITIONAL: Di sini saya menerapkan strategi "Member-Only". 
+              Jika user belum login (Guest), maka yang tampil adalah Landing Page dengan efek blur.
+              Jika sudah login, baru daftar puzzle asli ditampilkan. */
           /* Guest Landing Component */
           <div style={{ textAlign: 'center', padding: '60px 24px', position: 'relative' }}>
             <div style={{
@@ -238,11 +242,13 @@ export default function HomePage() {
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
                     📅 {new Date(puzzle.createdAt).toLocaleDateString('id-ID')}
                   </div>
-                  <Link href={`/play/${puzzle._id}`} style={{ display: 'block' }}>
-                    <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                      🎮 Mainkan
-                    </button>
-                  </Link>
+                  <button
+                    className="btn-primary"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => setSelectedPuzzleId(puzzle._id)}
+                  >
+                    🎮 Mainkan
+                  </button>
                 </div>
               );
             })}
@@ -250,6 +256,50 @@ export default function HomePage() {
         )
         }
       </div>
+
+      {/* Mode Selection Modal */}
+      {selectedPuzzleId && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setSelectedPuzzleId(null)}
+        >
+          <div
+            className="glass-card"
+            style={{ width: '100%', maxWidth: 450, padding: 40, textAlign: 'center', border: '1px solid var(--border-accent)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 48, marginBottom: 20 }}>🎮</div>
+            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12 }}>Pilih Mode Bermain</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>
+              Apakah kamu ingin asah otak sendirian atau berkolaborasi dengan teman secara real-time?
+            </p>
+
+            <div style={{ display: 'grid', gap: 12 }}>
+              <Link href={`/play/${selectedPuzzleId}`} style={{ display: 'block' }}>
+                <button className="btn-primary" style={{ width: '100%', padding: '14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                  👤 Main Solo (Sendiri)
+                </button>
+              </Link>
+              <Link href={`/play/${selectedPuzzleId}?mode=coop`} style={{ display: 'block' }}>
+                <button className="btn-primary" style={{ width: '100%', padding: '14px' }}>
+                  👥 Main Bareng (Co-op)
+                </button>
+              </Link>
+              <button
+                className="btn-secondary"
+                style={{ width: '100%', marginTop: 8 }}
+                onClick={() => setSelectedPuzzleId(null)}
+              >
+                Batal
+              </button>
+            </div>
+
+            <div style={{ marginTop: 20, fontSize: 11, color: 'var(--text-muted)' }}>
+              *Mode Main Bareng akan mensinkronkan jawaban secara real-time.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--text-muted)', fontSize: 13, borderTop: '1px solid var(--border)', marginTop: 60 }}>

@@ -287,13 +287,16 @@ function generateSingleLayout(entries: WordEntry[]): CrosswordResult {
 }
 
 // Main function: Mencoba beberapa kali dengan shuffle untuk hasil terbaik
+// LOGIKA UTAMA: Fungsi ini adalah otak dari generator TTS. 
+// Sistem melakukan 30 kali simulasi (Attempts) secara acak untuk mendapatkan grid yang paling rapat.
 export function generateCrossword(entries: WordEntry[]): CrosswordResult {
     let bestResult: CrosswordResult | null = null;
     const ATTEMPTS = 30; // Coba 30 kali susunan berbeda
 
-    // Sort awal: terpanjang dulu (biasanya baseline terbaik)
-    const initialSorted = [...entries].sort((a, b) => b.word.length - a.word.length);
-    bestResult = generateSingleLayout(initialSorted);
+    // LANGKAH 1: Sesuai Best Practice, kita sortir kata dari yang terpanjang. 
+    // Kata terpanjang akan diletakkan di tengah sebagai "Jangkar/Anchor" utama grid.
+    const sortedWords = [...entries].sort((a, b) => b.word.length - a.word.length);
+    bestResult = generateSingleLayout(sortedWords);
 
     if (bestResult.unplaced.length === 0) return bestResult;
 
