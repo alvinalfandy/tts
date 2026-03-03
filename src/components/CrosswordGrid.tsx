@@ -57,7 +57,7 @@ export default function CrosswordGrid({ grid, placements, readOnly = false, onCo
         }
     }, [cells, getCellsRef]);
 
-    // INTERVIEW-READY: Ini cara kita mensinkronkan data dari pemain lain ke grid lokal.
+    // Collaborative Logic: Sinkronisasi data real-time dari session pemain lain ke grid lokal.
     useEffect(() => {
         if (setCellsRef) {
             setCellsRef.current = (updates: Record<string, string>) => {

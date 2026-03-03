@@ -33,11 +33,12 @@ export const POST = auth(async (req) => {
         const body = await req.json();
         const { puzzleId, playerName, timeSeconds, hintsUsed } = body;
 
-        // Calculate score: 10,000 baseline
-        // Deduct 2 points per second
-        // Deduct 200 points per hint
-        // Minimum score: 100
-        // ANTI-CHEAT LOGIC: Hitung skor di server, jangan percaya 100% hitungan dari browser.
+        // Logic: Skor dihitung berdasarkan performa (Grading System)
+        // 🚀 Baseline: 10.000 poin
+        // ⏱ Penalty Waktu: -2 poin per detik
+        // 💡 Penalty Hint: -200 poin per penggunaan hint
+        // 🛡️ Batas Bawah: Minimal 100 poin (Apresiasi tetap menyelesaikan)
+        // 🛡️ Security Check: Re-calculate on server-side to prevent client manipulation.
         const totalScore = Math.max(100, 10000 - (timeSeconds * 2) - (hintsUsed * 200));
 
         const score = await Score.create({

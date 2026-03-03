@@ -44,7 +44,7 @@ function RegisterForm() {
                 setError(data.error || 'Registrasi gagal.');
             } else {
                 setSuccess(true);
-                // INTERVIEW-READY: Kita pakai teknik "Auto-Login".
+                // UX: Automasi flow dengan teknik "Auto-Login" untuk kenyamanan pengguna.
                 // Setelah akun dibuat, sistem langsung panggil signIn supaya user gak repot ngetik ulang.
                 const result = await signIn('credentials', {
                     username,

@@ -45,20 +45,22 @@ export async function POST(req: Request) {
 
         // Prepare atomic update object for cells using dotted notation
         // This prevents race conditions where one player overwrites another's changes
-        const updateObj: Record<string, any> = {
+        const setObj: Record<string, any> = {
             puzzleId,
             updatedAt: new Date(),
         };
 
+        const maxObj: Record<string, any> = {};
+
         // Update timer if provided (take highest to avoid going backward)
         if (typeof timerSeconds === 'number') {
-            updateObj.timerSeconds = timerSeconds;
+            maxObj.timerSeconds = timerSeconds;
         }
 
         // Add each cell change as a specific nested update
         if (cells && Object.keys(cells).length > 0) {
             Object.entries(cells).forEach(([key, val]) => {
-                updateObj[`cells.${key}`] = {
+                setObj[`cells.${key}`] = {
                     value: val,
                     playerId,
                     playerName,
@@ -71,7 +73,8 @@ export async function POST(req: Request) {
         await SharedSession.findOneAndUpdate(
             { roomId },
             {
-                $set: updateObj,
+                $set: setObj,
+                $max: maxObj,
                 $pull: { players: { id: playerId } }
             },
             { upsert: true, new: true }
