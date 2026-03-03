@@ -80,6 +80,7 @@ export default function PlayPage() {
     const getCellsRef = useRef<(() => string[][]) | null>(null);
     const setCellsRef = useRef<((vals: Record<string, string>) => void) | null>(null);
     const isCoop = searchParams.get('mode') === 'coop';
+    const roomId = searchParams.get('room');
 
     const loadLeaderboard = useCallback(() => {
         fetch(`/api/scores?puzzleId=${id}`)
@@ -176,6 +177,7 @@ export default function PlayPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         puzzleId: puzzle._id,
+                        roomId: roomId, // Unique circle ID
                         playerId: playerId.current,
                         playerName: playerName || (session?.user?.name) || 'Pemain',
                         playerColor,
@@ -184,7 +186,7 @@ export default function PlayPage() {
                 });
 
                 // Fetch latest state
-                const res = await fetch(`/api/session?puzzleId=${puzzle._id}`);
+                const res = await fetch(`/api/session?room=${roomId || ''}`);
                 const data = await res.json();
 
                 // Show online count
@@ -209,7 +211,7 @@ export default function PlayPage() {
         }, 1500); // Faster sync for co-op experience
 
         return () => clearInterval(syncInterval);
-    }, [puzzle, playerColor, playerName, session, isCoop]);
+    }, [puzzle, playerColor, playerName, session, isCoop, roomId]);
 
     const across = puzzle?.placements.filter((p) => p.direction === 'across') || [];
     const down = puzzle?.placements.filter((p) => p.direction === 'down') || [];
@@ -413,14 +415,14 @@ export default function PlayPage() {
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <input
                                     readOnly
-                                    value={typeof window !== 'undefined' ? `${window.location.origin}/play/${id}` : ''}
+                                    value={typeof window !== 'undefined' ? `${window.location.origin}/play/${id}?mode=${isCoop ? 'coop' : 'players-only'}${roomId ? `&room=${roomId}` : ''}` : ''}
                                     style={{ flex: 1, fontSize: 11, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
                                 />
                                 <button
                                     className="btn-primary"
                                     style={{ fontSize: 12, padding: '8px 14px', whiteSpace: 'nowrap' }}
                                     onClick={() => {
-                                        const url = `${window.location.origin}/play/${id}`;
+                                        const url = `${window.location.origin}/play/${id}?mode=${isCoop ? 'coop' : 'players-only'}${roomId ? `&room=${roomId}` : ''}`;
                                         navigator.clipboard.writeText(url);
                                         setCopied('players');
                                         setTimeout(() => setCopied(''), 2000);

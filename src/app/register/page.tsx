@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 
 function RegisterForm() {
@@ -43,7 +44,20 @@ function RegisterForm() {
                 setError(data.error || 'Registrasi gagal.');
             } else {
                 setSuccess(true);
-                setTimeout(() => router.push('/login'), 2000);
+                // INTERVIEW-READY: Kita pakai teknik "Auto-Login".
+                // Setelah akun dibuat, sistem langsung panggil signIn supaya user gak repot ngetik ulang.
+                const result = await signIn('credentials', {
+                    username,
+                    password,
+                    redirect: false,
+                });
+
+                if (result?.error) {
+                    setError('Akun dibuat, tapi gagal masuk otomatis. Silakan login manual.');
+                    setTimeout(() => router.push('/login'), 2000);
+                } else {
+                    setTimeout(() => router.push('/'), 1500);
+                }
             }
         } catch {
             setError('Terjadi kesalahan. Coba lagi.');
@@ -78,7 +92,10 @@ function RegisterForm() {
                     <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
                         <span className="gradient-text">TTS Crossword</span>
                     </h1>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>TTS Crossword — Platform Teka-Teki Silang</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: 4, fontSize: 10, border: '1px solid var(--border)' }}>MEMBER ONLY</span>
+                        TTS Crossword — Platform Teka-Teki Silang
+                    </p>
                 </div>
 
                 {/* Register card */}

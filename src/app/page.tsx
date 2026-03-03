@@ -280,7 +280,7 @@ export default function HomePage() {
                   👤 Main Solo (Sendiri)
                 </button>
               </Link>
-              <Link href={`/play/${selectedPuzzleId}?mode=coop`} style={{ display: 'block' }}>
+              <Link href={`/play/${selectedPuzzleId}?mode=coop&room=${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`} style={{ display: 'block' }}>
                 <button className="btn-primary" style={{ width: '100%', padding: '14px' }}>
                   👥 Main Bareng (Co-op)
                 </button>
