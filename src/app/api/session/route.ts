@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { SharedSession } from '@/models/SharedSession';
+import mongoose from 'mongoose';
 
 export async function GET(req: Request) {
     try {
@@ -8,6 +9,19 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const roomId = searchParams.get('room');
         if (!roomId) return NextResponse.json({ error: 'Missing roomId' }, { status: 400 });
+
+        // AUTO-FIX: Drop old unique index on puzzleId if it exists
+        try {
+            const collection = mongoose.connection.collection('sharedsessions');
+            const indexes = await collection.indexes();
+            const oldIdx = indexes.find(idx => idx.key.puzzleId === 1 && idx.unique && !idx.key.roomId);
+            if (oldIdx) {
+                console.log('AUTO-FIX: Dropping old unique index on puzzleId');
+                await collection.dropIndex(oldIdx.name!);
+            }
+        } catch (e) {
+            console.error('AUTO-FIX Error:', e);
+        }
 
         const session = await SharedSession.findOne({ roomId });
         if (!session) return NextResponse.json({ cells: {}, players: [] });

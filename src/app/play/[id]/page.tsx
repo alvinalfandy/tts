@@ -193,6 +193,11 @@ export default function PlayPage() {
                 const others = (data.players || []).filter((p: any) => p.id !== playerId.current);
                 setOnlinePlayers(others);
 
+                // Update remote cells (who is typing where)
+                if (data.cells) {
+                    setRemoteCells(data.cells);
+                }
+
                 // If coop, update local grid from shared state
                 if (isCoop && data.cells) {
                     const stringified = JSON.stringify(data.cells);
@@ -498,6 +503,7 @@ export default function PlayPage() {
                                 getCellsRef={getCellsRef}
                                 setCellsRef={setCellsRef}
                                 onCellChange={handleCellChange}
+                                remoteCells={remoteCells}
                             />
                         </div>
                     </div>
