@@ -59,6 +59,7 @@ export default function PlayPage() {
     const [seconds, setSeconds] = useState(0);
     const [timerRunning, setTimerRunning] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const secondsRef = useRef(0);
     const [playerName, setPlayerName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [scoreSubmitted, setScoreSubmitted] = useState(false);
@@ -108,7 +109,13 @@ export default function PlayPage() {
 
     useEffect(() => {
         if (timerRunning && !completed) {
-            timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+            timerRef.current = setInterval(() => {
+                setSeconds((s) => {
+                    const next = s + 1;
+                    secondsRef.current = next;
+                    return next;
+                });
+            }, 1000);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [timerRunning, completed]);
@@ -182,12 +189,19 @@ export default function PlayPage() {
                         playerName: playerName || (session?.user?.name) || 'Pemain',
                         playerColor,
                         cells: isCoop ? currentPending : {}, // Share letters only in coop mode
+                        timerSeconds: secondsRef.current, // Sync local timer to server
                     }),
                 });
 
                 // Fetch latest state
                 const res = await fetch(`/api/session?room=${roomId || ''}`);
                 const data = await res.json();
+
+                // Sync Timer (if server time is significantly ahead, jump to it)
+                if (isCoop && data.timerSeconds > secondsRef.current) {
+                    setSeconds(data.timerSeconds);
+                    secondsRef.current = data.timerSeconds;
+                }
 
                 // Show online count
                 const others = (data.players || []).filter((p: any) => p.id !== playerId.current);

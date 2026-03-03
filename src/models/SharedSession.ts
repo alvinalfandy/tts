@@ -6,7 +6,8 @@ import mongoose, { Schema, model, models } from 'mongoose';
 export interface ISharedSession {
     puzzleId: string;
     roomId: string; // Unique for each "Circle" or "Room"
-    cells: Record<string, { value: string; playerId: string; playerColor: string }>;
+    timerSeconds: number; // Shared game time
+    cells: Record<string, { value: string; playerId: string; playerColor: string; playerName: string }>;
     players: { id: string; name: string; color: string; lastSeen: Date }[];
     updatedAt: Date;
 }
@@ -14,6 +15,7 @@ export interface ISharedSession {
 const SharedSessionSchema = new Schema<ISharedSession>({
     puzzleId: { type: String, required: true, index: true },
     roomId: { type: String, required: true, unique: true, index: true },
+    timerSeconds: { type: Number, default: 0 },
     cells: { type: Schema.Types.Mixed, default: {} },
     players: [
         {
