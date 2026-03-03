@@ -170,55 +170,64 @@ export default function PlayPage() {
         pendingCells.current[key] = value;
     }, []);
 
+    // AUTO-ROOM: Jika mode coop tapi roomId kosong, generate otomatis dan redirect.
+    // Ini krusial agar sync API tidak 400 (Bad Request) karena roomId null.
+    useEffect(() => {
+        if (isCoop && !roomId && puzzle) {
+            const newRoomId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            router.replace(`/play/${id}?mode=coop&room=${newRoomId}`);
+        }
+    }, [isCoop, roomId, puzzle, id, router]);
+
     // MULTIPLAYER PRESENCE & SYNC: Fitur untuk sinkronisasi grid real-time.
     useEffect(() => {
-        if (!puzzle) return;
+        if (!puzzle || !roomId) return; // Tunggu sampai room ID siap
         const syncInterval = setInterval(async () => {
             try {
                 const currentPending = { ...pendingCells.current };
                 pendingCells.current = {};
 
-                // Ping & Sync
-                await fetch('/api/session', {
+                // Unified Atomic Sync: Kirim data lokal dan terima data terbaru dari room sekaligus.
+                // Ini mencegah race condition dan memangkas latency antar pemain.
+                const res = await fetch('/api/session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         puzzleId: puzzle._id,
-                        roomId: roomId, // Unique circle ID
+                        roomId: roomId,
                         playerId: playerId.current,
                         playerName: playerName || (session?.user?.name) || 'Pemain',
                         playerColor,
-                        cells: isCoop ? currentPending : {}, // Share letters only in coop mode
-                        timerSeconds: secondsRef.current, // Sync local timer to server
+                        cells: isCoop ? currentPending : {},
+                        timerSeconds: secondsRef.current,
                     }),
                 });
 
-                // Fetch latest state
-                const res = await fetch(`/api/session?room=${roomId || ''}`);
+                if (!res.ok) throw new Error('Sync failed');
                 const data = await res.json();
 
-                // Sync Timer (if server time is significantly ahead, jump to it)
-                if (isCoop && data.timerSeconds > secondsRef.current) {
+                // 1. Sinkronisasi Timer (Room Master Clock)
+                // Jika waktu di server lebih besar (kemajuan tim), lompat ke waktu tersebut.
+                if (isCoop && typeof data.timerSeconds === 'number' && data.timerSeconds > secondsRef.current) {
                     setSeconds(data.timerSeconds);
                     secondsRef.current = data.timerSeconds;
                 }
 
-                // Show online count
+                // 2. Update Daftar Pemain Online
                 const others = (data.players || []).filter((p: any) => p.id !== playerId.current);
                 setOnlinePlayers(others);
 
-                // Update remote cells (who is typing where)
+                // 3. Update Remote Cursor (siapa ngetik di mana)
                 if (data.cells) {
                     setRemoteCells(data.cells);
                 }
 
-                // If coop, update local grid from shared state
+                // 4. Sinkronisasi Grid (Hanya di Mode Co-op)
                 if (isCoop && data.cells) {
                     const stringified = JSON.stringify(data.cells);
                     if (stringified !== lastSyncCells.current) {
                         lastSyncCells.current = stringified;
 
-                        // Extract only values for local cells
                         const cellUpdates: Record<string, string> = {};
                         Object.entries(data.cells).forEach(([key, val]: [string, any]) => {
                             cellUpdates[key] = val.value;
@@ -226,8 +235,10 @@ export default function PlayPage() {
                         setCellsRef.current?.(cellUpdates);
                     }
                 }
-            } catch { /* silent fail */ }
-        }, 1500); // Faster sync for co-op experience
+            } catch (err) {
+                console.error('Co-op Sync Error:', err);
+            }
+        }, 1500);
 
         return () => clearInterval(syncInterval);
     }, [puzzle, playerColor, playerName, session, isCoop, roomId]);

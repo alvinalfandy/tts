@@ -31,7 +31,11 @@ export async function GET(req: Request) {
         const activePlayers = (session.players || []).filter(
             (p: any) => now - new Date(p.lastSeen).getTime() < 10000
         );
-        return NextResponse.json({ cells: session.cells || {}, players: activePlayers });
+        return NextResponse.json({
+            cells: session.cells || {},
+            players: activePlayers,
+            timerSeconds: session.timerSeconds || 0
+        });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -43,34 +47,24 @@ export async function POST(req: Request) {
         const { puzzleId, roomId, playerId, playerName, playerColor, cells, timerSeconds } = await req.json();
         if (!roomId || !playerId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-        // Prepare atomic update object for cells using dotted notation
-        // This prevents race conditions where one player overwrites another's changes
         const setObj: Record<string, any> = {
             puzzleId,
             updatedAt: new Date(),
         };
-
         const maxObj: Record<string, any> = {};
 
-        // Update timer if provided (take highest to avoid going backward)
         if (typeof timerSeconds === 'number') {
             maxObj.timerSeconds = timerSeconds;
         }
 
-        // Add each cell change as a specific nested update
         if (cells && Object.keys(cells).length > 0) {
             Object.entries(cells).forEach(([key, val]) => {
-                setObj[`cells.${key}`] = {
-                    value: val,
-                    playerId,
-                    playerName,
-                    playerColor
-                };
+                setObj[`cells.${key}`] = { value: val, playerId, playerName, playerColor };
             });
         }
 
         // 1. Atomic update of game state & remove player if already in list
-        await SharedSession.findOneAndUpdate(
+        const session = await SharedSession.findOneAndUpdate(
             { roomId },
             {
                 $set: setObj,
@@ -81,16 +75,28 @@ export async function POST(req: Request) {
         );
 
         // 2. Re-add player with fresh lastSeen
-        await SharedSession.findOneAndUpdate(
+        const updatedSession = await SharedSession.findOneAndUpdate(
             { roomId },
             {
                 $push: {
                     players: { id: playerId, name: playerName, color: playerColor, lastSeen: new Date() },
                 },
-            }
+            },
+            { new: true }
         );
 
-        return NextResponse.json({ success: true });
+        // Unify response: Return everything we used to get in GET
+        const now = Date.now();
+        const activePlayers = (updatedSession?.players || []).filter(
+            (p: any) => now - new Date(p.lastSeen).getTime() < 10000
+        );
+
+        return NextResponse.json({
+            success: true,
+            cells: updatedSession?.cells || {},
+            players: activePlayers,
+            timerSeconds: updatedSession?.timerSeconds || 0
+        });
     } catch (error: any) {
         console.error('Session Update Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
